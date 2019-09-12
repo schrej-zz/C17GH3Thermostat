@@ -8,6 +8,7 @@
 #include <WiFiManager.h>
 #include <ArduinoOTA.h>
 #include <ESP8266mDNS.h>
+#include <ArduinoJson.h>
 
 // time includes
 #include <time.h>
@@ -25,21 +26,33 @@ C17GH3State state;
 Webserver webserver;
 Log logger;
 bool relayOn = false;
+StaticJsonDocument<1024> jsonDoc;
 
-#define TIMEZONE 	"PST8PDT,M3.2.0,M11.1.0" // FROM https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json
+#define TIMEZONE 	"CET-1CEST,M3.5.0,M10.5.0/3" // FROM https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json
 
 static void setupOTA();
 static void initTime();
 static void ICACHE_RAM_ATTR handleRelayMonitorInterrupt();
+static void mqttCallback(char* topic, byte* payload, unsigned int length);
+void mqttPublish();
 
 #define PIN_RELAY_MONITOR D1
 #define PIN_RELAY2        D2
 
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
 
+String devName;
+String mqttServer = "192.168.71.12";
+uint16_t   mqttPort = 1883;
+String mqttUser = "herter";
+String mqttPassword = "****";
+String mqttPrefix = "herter/thermostat";
 
 void setup()
 {
-	String devName = String("Thermostat-") + String(ESP.getChipId(),HEX);
+	devName = String("Thermostat-") + String(ESP.getChipId(),HEX);
+	mqttPrefix += String("/") + String(ESP.getChipId(),HEX);
 	ArduinoOTA.setHostname(devName.c_str());
 	WiFi.hostname(devName);
 	WiFi.enableAP(false);
@@ -50,7 +63,8 @@ void setup()
 
 	Serial.begin(9600);
 
-	state.setWifiConfigCallback([devName]() {
+	String name = devName;
+	state.setWifiConfigCallback([name]() {
 		logger.addLine("Configuration portal opened");
 		webserver.stop();
         wifiManager.startConfigPortal(devName.c_str());
@@ -77,7 +91,9 @@ void setup()
 	digitalWrite(PIN_RELAY2, LOW); 	
 #endif
 
-}
+	mqttClient.setServer(mqttServer.c_str(), mqttPort);
+	mqttClient.setCallback(mqttCallback);
+;}
 
 timeval cbtime;			// when time set callback was called
 int cbtime_set = 0;
@@ -89,15 +105,133 @@ static void timeSet()
 
 
 
+void mqttCallback(char* topic, byte* payload, unsigned int length) 
+{
+	char buffer[64] = {0};
+
+	if (length >= 64 || length == 0)
+		return; // message too big or null
+	memcpy(buffer, payload, length);
+	String pay(buffer);
+	if(pay.length() == 0)
+	  return;
+	if(strcmp(&topic[mqttPrefix.length()], "/on/set") == 0)
+		state.setPower(pay.toInt());
+	else if(strcmp(&topic[mqttPrefix.length()], "/lock/set") == 0)
+		state.setLock(pay.toInt());
+	else if(strcmp(&topic[mqttPrefix.length()], "/manual/set") == 0)
+		state.setMode(pay.toInt());
+	else if(strcmp(&topic[mqttPrefix.length()], "/temperature_setpoint/set") == 0)
+		state.setSetPointTemp(pay.toFloat());
+	else if(strcmp(&topic[mqttPrefix.length()], "/backlight_always_on/set") == 0)
+		state.setBacklightMode(pay.toInt());
+	else if(strcmp(&topic[mqttPrefix.length()], "/on_after_powerloss/set") == 0)
+		state.setPowerMode(pay.toInt());	
+	else if(strcmp(&topic[mqttPrefix.length()], "/antifreeze/set") == 0)
+		state.setAntifreezeMode(pay.toInt());	
+	else if(strcmp(&topic[mqttPrefix.length()], "/sensor_mode/set") == 0)
+		state.setSensorMode((C17GH3MessageSettings2::SensorMode)pay.toInt());	
+	else if(strcmp(&topic[mqttPrefix.length()], "/temperature_correction/set") == 0)
+		state.setTempCorrect(pay.toFloat());
+	else if(strcmp(&topic[mqttPrefix.length()], "/hysteresis_internal/set") == 0)
+		state.setInternalHysteresis(pay.toFloat());
+	else if(strcmp(&topic[mqttPrefix.length()], "/hysteresis_external/set") == 0)
+		state.setExternalHysteresis(pay.toFloat());
+	else if(strcmp(&topic[mqttPrefix.length()], "/temperature_limit_external/set") == 0)
+		state.setTemperatureLimit(pay.toFloat());
+	else if(strcmp(&topic[mqttPrefix.length()], "/schedule1/set") == 0)
+		state.setSchedule(1, pay);
+	else if(strcmp(&topic[mqttPrefix.length()], "/schedule2/set") == 0)
+		state.setSchedule(2, pay);
+	else if(strcmp(&topic[mqttPrefix.length()], "/schedule3/set") == 0)
+		state.setSchedule(3, pay);
+	else if(strcmp(&topic[mqttPrefix.length()], "/schedule4/set") == 0)
+		state.setSchedule(4, pay);
+	else if(strcmp(&topic[mqttPrefix.length()], "/schedule5/set") == 0)
+		state.setSchedule(5, pay);
+	else if(strcmp(&topic[mqttPrefix.length()], "/schedule6/set") == 0)
+		state.setSchedule(6, pay);
+	else if(strcmp(&topic[mqttPrefix.length()], "/schedule7/set") == 0)
+		state.setSchedule(7, pay);
+
+}
+
+uint32_t mqttNextConnectAttempt = 0;
+void mqttReconnect() 
+{
+	uint32_t now = millis();
+	if (now > mqttNextConnectAttempt)
+	{
+		// Loop until we're reconnected
+		if (!mqttClient.connected())
+		{
+			logger.addLine("Attempting MQTT connection...");
+			// Attempt to connect
+			String lastWill = mqttPrefix + "/online";
+			if (mqttClient.connect(devName.c_str(), mqttUser.c_str(), mqttPassword.c_str(), lastWill.c_str(), 1, true, "offline")) 
+			{
+				logger.addLine("MQTT connected");
+				mqttClient.publish(lastWill.c_str(), "online");
+				mqttClient.subscribe(String(mqttPrefix + "/+/set").c_str());
+			} 
+			else 
+			{
+				logger.addLine(String("MQTT Connection failed: " + mqttClient.state()));
+				mqttNextConnectAttempt = now + 2000;
+			}
+		}
+	}
+}
+
+void mqttPublish()
+{
+	if(state.isChanged)
+	{
+		mqttClient.publish(String(mqttPrefix + "/online").c_str(), "online");
+		mqttClient.publish(String(mqttPrefix + "/wifi").c_str(), String(state.getWiFiState()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/temperature_setpoint").c_str(), String(state.getSetPointTemp()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/lock").c_str(), String(state.getLock()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/manual").c_str(), String(state.getMode()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/on").c_str(), String(state.getPower()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/temperatur_internal").c_str(), String(state.getInternalTemperature()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/temperatur_external").c_str(), String(state.getExternalTemperature()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/backlight_always_on").c_str(), String(state.getBacklightMode()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/on_after_powerloss").c_str(), String(state.getPowerMode()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/antifreeze").c_str(), String(state.getAntifreezeMode()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/sensor_mode").c_str(), String(state.getSensorMode()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/temperature_correction").c_str(), String(state.getTempCorrect()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/hysteresis_internal").c_str(), String(state.getInternalHysteresis()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/hysteresis_external").c_str(), String(state.getExternalHysteresis()).c_str());
+		mqttClient.publish(String(mqttPrefix + "/temperature_limit_external").c_str(), String(state.getTemperatureLimit()).c_str());
+		
+		mqttClient.publish(String(mqttPrefix + "/schedule1").c_str(), state.getSchedule(1).c_str());
+		mqttClient.publish(String(mqttPrefix + "/schedule2").c_str(), state.getSchedule(2).c_str());
+		mqttClient.publish(String(mqttPrefix + "/schedule3").c_str(), state.getSchedule(3).c_str());
+		mqttClient.publish(String(mqttPrefix + "/schedule4").c_str(), state.getSchedule(4).c_str());
+		mqttClient.publish(String(mqttPrefix + "/schedule5").c_str(), state.getSchedule(5).c_str());
+		mqttClient.publish(String(mqttPrefix + "/schedule6").c_str(), state.getSchedule(6).c_str());
+		mqttClient.publish(String(mqttPrefix + "/schedule7").c_str(), state.getSchedule(7).c_str());
+
+		state.isChanged = false;
+	}
+}
+
 void loop()
 {
+	if (!mqttClient.connected()) {
+		mqttReconnect();
+	}
 	state.setIsHeating(relayOn);
 	state.processRx();
+	if(state.isChanged)
+	{
+	   mqttPublish();
+	}
 	webserver.process();
 	ArduinoOTA.handle();
 	state.processTx(cbtime_set > 1);
 	MDNS.update();
-
+	mqttClient.loop();
 }
 
 static void setupOTA()
@@ -115,232 +249,28 @@ static void setupOTA()
 	
 	ArduinoOTA.onError([](ota_error_t error)
 	{
-		/*
-		Serial.printf("Error[%u]: ", error);
-		if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-		else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-		else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-		else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-		else if (error == OTA_END_ERROR) Serial.println("End Failed");
-		*/
+
 	});
 	ArduinoOTA.begin();
 }
 
-
-
 static void initTime()
 {
-
-	// set function to call when time is set
-	// is called by NTP code when NTP is used
 	settimeofday_cb(timeSet);
 
-	// set time from RTC
-	// Normally you would read the RTC to eventually get a current UTC time_t
-	// this is faked for now.
 	time_t rtc_time_t = 1541267183; // fake RTC time for now
 
 	timezone tz = { 0, 0};
 	timeval tv = { rtc_time_t, 0};
 
-	// DO NOT attempt to use the timezone offsets
-	// The timezone offset code is really broken.
-	// if used, then localtime() and gmtime() won't work correctly.
-	// always set the timezone offsets to zero and use a proper TZ string
-	// to get timezone and DST support.
-
-	// set the time of day and explicitly set the timezone offsets to zero
-	// as there appears to be a default offset compiled in that needs to
-	// be set to zero to disable it.
 	settimeofday(&tv, &tz);
-
-
-	// set up TZ string to use a POSIX/gnu TZ string for local timezone
-	// TZ string information:
-	// https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
 	setenv("TZ", TIMEZONE, 1);
 
 	tzset(); // save the TZ variable
-
-	// enable NTP by setting up NTP server(s)
-	// up to 3 ntp servers can be specified
-	// configTime(tzoffset, dstflg, "ntp-server1", "ntp-server2", "ntp-server3");
-	// set both timezone offet and dst parameters to zero 
-	// and get real timezone & DST support by using a TZ string
-	configTime(0, 0, "pool.ntp.org");
+	configTime(0, 0, "de.pool.ntp.org");
 }
-
 
 static void ICACHE_RAM_ATTR handleRelayMonitorInterrupt()
 {
 	relayOn = digitalRead(PIN_RELAY_MONITOR);
 }
-
-/*
-
-#define  "192.168.31.107" // Enter your MQTT server adderss or IP. I use my DuckDNS adddress (yourname.duckdns.org) in this field
-#define mqtt_user "DVES_USER" //enter your MQTT username
-#define mqtt_password "DVES_PASS" //enter your password
-
-#define topic_base "livingroom/wifiremote/"
-#define send_raw topic_base"send/raw"
-#define send_samsung topic_base"send/samsung"
-#define send_rc5 topic_base"send/rc5"
-#define send_rc6 topic_base"send/rc6"
-#define send_nec topic_base"send/nec"
-#define send_sony topic_base"send/sony"
-#define send_jvc topic_base"send/jvc"
-#define send_whynter topic_base"send/whynter"
-#define send_aiwarct501 topic_base"send/aiwar"
-#define send_lg topic_base"send/lg"
-#define send_dish topic_base"send/dish"
-#define send_sharp topic_base"send/sharp"
-#define send_sharpraw topic_base"send/sharpraw"
-#define send_denon topic_base"send/denon"
-#define send_pronto topic_base"send/pronto"
-#define send_legopower topic_base"send/legopower"
-
-WiFiClient espClient;
-PubSubClient mqttClient(espClient); //this needs to be unique for each controller
-
-
-void mqttCallback(char* topic, byte* payload, unsigned int length)
-{
-	char buffer[64] = {0};
-
-	if (length >= 64)
-		return; // message too big
-
-	memcpy(buffer, payload, length);
-
-	// sendsamsung: data=aaeeff00,bits=32,repeat=5
-	// raw data=aa00ff,hz=300
-	// ...
-	uint32_t bits = 0;
-	uint32_t repeat = 0;
-	//uint32_t data[16] = {0};
-	uint64_t data64 = 0;
-
-	char *saveptr1 = NULL, *saveptr2 = NULL;
-
-	char* token1 = strtok_r(buffer, ",", &saveptr1); 
-
-	while (token1 != NULL)
-	{
-		char* name = strtok_r(token1,"=",&saveptr2);
-		if (name != NULL)
-		{
-			char* value = strtok_r(NULL,"=",&saveptr2);
-			if (NULL != value)
-			{
-				Serial.print(name);
-				Serial.print(" = ");
-				Serial.print(value);
-				Serial.println();
-				if (String(name) == "data")
-				{
-						// convert hex string
-						char* endptr = NULL;
-						uint32_t val = strtoul (value, &endptr, 16);
-						Serial.print("value in hex: ");
-						Serial.println(val, HEX);
-						data64 = val;
-						
-
-				}
-				else if (String(name) == "bits")
-				{
-					// convert int string to int
-					bits = atoi(value);
-					
-				}
-				else if (String(name) == "repeat")
-				{
-					repeat = atoi(value);
-				}
-
-			}
-			token1 = strtok_r(NULL,",",&saveptr1);
-		}
-	} 
-
-	if (String(topic) == send_samsung)
-	{
-		if (0 != data64 && bits == 32 && repeat <= 20)
-		{
-			Serial.print("Sending data to samsung data=");
-			Serial.print((uint32_t)data64,HEX);
-			Serial.print(", bits=");
-			Serial.print(bits);
-			Serial.print(", repeat=");
-			Serial.println(repeat);
-			irsend.sendSAMSUNG(data64, bits, repeat);
-		}
-		else
-		{
-			Serial.print("Data Error: Not sending data to samsung data=");
-			Serial.print((uint32_t)data64,HEX);
-			Serial.print(", bits=");
-			Serial.print(bits);
-			Serial.print(", repeat=");
-			Serial.println(repeat);
-		}
-		
-	}
-}
-
-uint32_t mqttNextConnectAttempt = 0;
-
-void mqttReconnect()
-{
-
-	uint32_t now = millis();
-	if (now > mqttNextConnectAttempt)
-	{
-		// Loop until we're reconnected
-		if (!mqttClient.connected())
-		{
-			Serial.print("Attempting MQTT connection...");
-			// Create a random client ID
-			String clientId = "devname-";
-			clientId += String(random(0xffff), HEX);
-			// Attempt to connect
-			if (mqttClient.connect(devname, mqtt_user, mqtt_password))
-			{
-				Serial.println("connected");
-				// Once connected, publish an announcement...
-				//mqttClient.publish("outTopic", "hello world");
-				// ... and resubscribe
-				mqttClient.subscribe(send_samsung);
-				mqttClient.subscribe(send_raw);
-				mqttClient.subscribe(send_rc5);
-				mqttClient.subscribe(send_rc6);
-				mqttClient.subscribe(send_nec);
-				mqttClient.subscribe(send_sony);
-				mqttClient.subscribe(send_jvc);
-				mqttClient.subscribe(send_whynter);
-				mqttClient.subscribe(send_aiwarct501);
-				mqttClient.subscribe(send_lg);
-				mqttClient.subscribe(send_dish);
-				mqttClient.subscribe(send_sharp);
-				mqttClient.subscribe(send_sharpraw);
-				mqttClient.subscribe(send_denon);
-				mqttClient.subscribe(send_pronto);
-				mqttClient.subscribe(send_legopower);
-				mqttClient.subscribe(send_samsung);
-			}
-			else
-			{
-				Serial.print("failed, rc=");
-				Serial.print(mqttClient.state());
-				Serial.println(" try again in 5 seconds");
-				// Wait 5 seconds before retrying
-				//delay(5000);
-				mqttNextConnectAttempt = now + 2000;
-			}
-		}
-	}
-}
-
-*/

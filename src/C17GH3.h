@@ -126,16 +126,21 @@ public:
 
 		if (sending)
 		{
-			s += 
-			    String(", day: ") + String(getDayOfWeek()) + 
-		    	String(", hour: ") + String(getHour()) + 
-			    String(", minute: ") + String(getMinute());
+			s += String(", day: ") + String(getDayOfWeek()) + 
+		    	 String(", hour: ") + String(getHour()) + 
+			     String(", minute: ") + String(getMinute());
 		}
 		else
 		{
  			s += String(", internal temp: ") + String(getInternalTemperature()) + 
-		    	String(", external temp: ") + String(getExternalTemperature());
+		    	 String(", external temp: ") + String(getExternalTemperature());
 		}
+
+		s += String(", unknown7: ") + String(getUnknown7(),HEX);
+		s += String(", unknown9: ") + String(getUnknown9(),HEX);
+		s += String(", unknown10: ") + String(getUnknown10(),HEX);
+		s += String(", unknown11: ") + String(getUnknown11(),HEX);
+
 		return s;
 	}
 
@@ -254,6 +259,43 @@ public:
 		return float(temp) / 10.f;
 	}
 
+
+// Unknown for Debug and Trace
+	uint8_t getUnknown7() const
+	{
+		return unknown7;
+	}
+	void setUnknown7(uint8_t u)
+	{
+		unknown7 = u;
+	}
+	uint8_t getUnknown9() const
+	{
+		return unknown9;
+	}
+	void setUnknown9(uint8_t u)
+	{
+		unknown9 = u;
+	}
+	uint8_t getUnknown10() const
+	{
+		return unknown10;
+	}
+	void setUnknown10(uint8_t u)
+	{
+		unknown10 = u;
+	}
+	uint8_t getUnknown11() const
+	{
+		return unknown11;
+	}
+	void setUnknown11(uint8_t u)
+	{
+		unknown11 = u;
+	}
+
+
+
 	uint8_t &wifi_state = bytes[3];  // 00 = start wifi hotspot, 02 = disconnected, 03 = connecting, 04 = disconnecting?, 05 = connected , 06
 	
 	// when sending to MCU, the following 4 bytes set the time
@@ -288,28 +330,17 @@ public:
 	}
 	uint8_t &backlightMode       = bytes[3];  // 00 = autooff, ff = steady on
 	uint8_t &powerMode           = bytes[4];  // 00 = off when powered on, ff == last state of power
-	uint8_t &antifreezeMode      = bytes[5];     // 00 = off, ff = on 
-	uint8_t &tempCorrection      = bytes[6]; // -5 to +5, default -2
-	uint8_t &internalHysteresis  = bytes[7]; // 0x32 = 50 = 5 degrees , .5 to 5 degrees, .5 increments
-	uint8_t &externalHysteresis  = bytes[8]; // 1e  = 30 = 3.0 degrees
-	uint8_t &unknown9            = bytes[9]; // 00
-	uint8_t &sensorMode          = bytes[10];  // 00 = internal, 01 = external, 02 = both 
+	uint8_t &antifreezeMode      = bytes[5];  // 00 = off, ff = on 
+	uint8_t &tempCorrection      = bytes[6];  // -5 to +5, default -2
+	uint8_t &internalHysteresis  = bytes[7];  // 0x32 = 50 = 5 degrees , .5 to 5 degrees, .5 increments
+	uint8_t &externalHysteresis  = bytes[8];  // 1e  = 30 = 3.0 degrees
+	uint8_t &unknown9            = bytes[9];  // 00
+	uint8_t &sensorMode          = bytes[10]; // 00 = internal, 01 = external, 02 = both 
 	uint8_t &externalSensorLimit = bytes[11]; // 40-80degrees. default 55
 	uint8_t &unknown12           = bytes[12]; // 00
 	uint8_t &unknown13           = bytes[13]; // 00 // ff - 03
 	uint8_t &unknown14           = bytes[14]; // 01
 
-	// TEMPERATURE CORRECTION -5 to 5 degrees (default -2)
-	// could be : (unknown2, unknown4, unknown6, unknown7, unknown8) 
-	
-	//dt0 internal sensor hysteresis .5 to 4 degrees (default 1 )
-	// could be : (unknown8) 
-	
-	//dt1 external sensor hysteresis .5 to 5 degrees (default 3)
-	// could be : (unknown2, unknown8)
-
-	// external temperature sensor limit 40 to 80 degrees (default 55) (all or external
-	// could be : (unknown5)
 	enum SensorMode
 	{
 		SENSOR_MODE_INTERNAL,
@@ -403,17 +434,55 @@ public:
 		externalSensorLimit = limit;
 	}
 
+// Unknown for Debug and Trace
+	uint8_t getUnknown9() const
+	{
+		return unknown9;
+	}
+	void setUnknown9(uint8_t u)
+	{
+		unknown9 = u;
+	}
+	uint8_t getUnknown12() const
+	{
+		return unknown12;
+	}
+	void setUnknown12(uint8_t u)
+	{
+		unknown12 = u;
+	}
+	uint8_t getUnknown13() const
+	{
+		return unknown13;
+	}
+	void setUnknown13(uint8_t u)
+	{
+		unknown13 = u;
+	}
+	uint8_t getUnknown14() const
+	{
+		return unknown14;
+	}
+	void setUnknown14(uint8_t u)
+	{
+		unknown14 = u;
+	}
+
 	virtual String toString()
 	{
 		return String("Settings 2: ") +
-		    String("backlight mode: ") + String(getBacklightMode()) + 
-		    String(", power mode: ") + String(getPowerMode()) + 
-		    String(", antifreeze mode: ") + String(getAntifreezeMode()) +
-		    String(", sensor mode: ") + String(getSensorMode()) +
-		    String(", temp correct: ") + String(getTemperatureCorrection()) +
-		    String(", int hyst: ") + String(getInternalHysteresis()) +
-		    String(", ext hist: ") + String(getExternalHysteresis()) +
-		    String(", ext limit: ") + String(getExternalSensorLimit())
+		       String("backlight mode: ") + String(getBacklightMode()) + 
+		       String(", power mode: ") + String(getPowerMode()) + 
+		       String(", antifreeze mode: ") + String(getAntifreezeMode()) +
+		       String(", sensor mode: ") + String(getSensorMode()) +
+		       String(", temp correct: ") + String(getTemperatureCorrection()) +
+		       String(", int hyst: ") + String(getInternalHysteresis()) +
+		       String(", ext hist: ") + String(getExternalHysteresis()) +
+		       String(", ext limit: ") + String(getExternalSensorLimit()) +
+		       String(", unknown9: ") + String(getUnknown9(),HEX) +
+		       String(", unknown12: ") + String(getUnknown12(),HEX) +
+		       String(", unknown13: ") + String(getUnknown13(),HEX) +
+		       String(", unknown14: ") + String(getUnknown14(),HEX)
 		;
 	}
 };
@@ -421,6 +490,8 @@ public:
 
 class C17GH3MessageSchedule : public C17GH3MessageBase
 {
+private:
+	String json; 
 public:
 	C17GH3MessageSchedule(){}
 	C17GH3MessageSchedule(int day) // day = 0 - 6
@@ -478,6 +549,20 @@ public:
 		bytes[4 + idx * 2] = (uint8_t)(temp * 2 + .5f);
 	}
 
+    String toJson()
+	{
+		json = String("{");
+		for (int i = 0 ; i < 6; i++)
+		{
+			json += String("\"time") + String(i+1) + String("\":\"") + String(getHour(i)) + String(":") + String(getMinute(i)) + String("\",");
+			json += String("\"temp") + String(i+1) + String("\":") + String(getTemperature(i));
+		    if(i != 5)
+			  json += String(",");
+		}
+		json += "}";
+
+		return json;
+	}
 
 	virtual String toString()
 	{
@@ -487,7 +572,7 @@ public:
 			if (0 != i)
 				times += ", ";
 			times += String("time") + String(i+1) + String(": ") + String(getHour(i)) + String(":") + String(getMinute(i)) + 
-		    	String(", temp") + String(i+1) + String(": ") + String(getTemperature(0));
+		    	String(", temp") + String(i+1) + String(": ") + String(getTemperature(i));
 		}
 
 		return String("Schedule ") +
@@ -561,6 +646,7 @@ private:
 class C17GH3State
 {
 public:
+	bool isChanged = false;
 
 	C17GH3MessageSettings1::WiFiState getWiFiState() const;
 	bool getIsHeating() const;
@@ -584,10 +670,17 @@ public:
 	void setAntifreezeMode(bool am);
 	C17GH3MessageSettings2::SensorMode getSensorMode() const;
 	void setSensorMode(C17GH3MessageSettings2::SensorMode sm);
+	float getTempCorrect() const;
+	void setTempCorrect(float temperature);
+	float getInternalHysteresis() const;
+	void setInternalHysteresis(float temperature);
+	float getExternalHysteresis() const;
+	void setExternalHysteresis(float temperature);
+	float getTemperatureLimit() const;
+	void setTemperatureLimit(float temperature);
 
-
-
-
+	String getSchedule(int day) const;
+	void setSchedule(int day, String json);
 
 	//C17GH3State::C17GH3State() {}
 	void processRx();

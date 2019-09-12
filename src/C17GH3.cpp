@@ -1,10 +1,12 @@
 #include <ESP8266WiFi.h> 
 #include <sys/time.h>
+#include <ArduinoJson.h>
 
 #include "C17GH3.h"
 #include "Log.h"
 
 extern Log logger;
+extern StaticJsonDocument<1024> jsonDoc;
 
 void C17GH3State::processRx()
 {
@@ -41,6 +43,7 @@ void C17GH3State::processRx(const C17GH3MessageBase& msg)
 		{
 			C17GH3MessageSettings1 s1msg;
 			s1msg.setBytes(msg.getBytes());
+			isChanged = true;
 			if (C17GH3MessageSettings1::WIFI_STATE_CONFIG == s1msg.getWiFiState())
 			{
 				// wifi config request
@@ -59,6 +62,7 @@ void C17GH3State::processRx(const C17GH3MessageBase& msg)
 		break;
 		case 0xC2:
 			settings2.setBytes(msg.getBytes());
+			isChanged = true;
 			logger.addLine(settings2.toString());
 		break;
 		case 0xC3:
@@ -70,6 +74,7 @@ void C17GH3State::processRx(const C17GH3MessageBase& msg)
 		case 0xC9:
 			schedule[msg.type - 0xC3].setBytes(msg.getBytes());
 			logger.addLine(schedule[msg.type - 0xC3].toString());
+			isChanged = true;
 		break;
 		default:
 			logger.addLine("MSG Not handled");
@@ -144,7 +149,7 @@ void C17GH3State::sendSettings1(bool timeAvailable) const
 		new_time != nullptr )
 	{
 		if (newWifiState != settings1.getWiFiState())
-			logger.addLine(String("Wifi state: ") + String(newWifiState) + String("Old:") + String(settings1.getWiFiState()));
+			logger.addLine(String("Wifi state: ") + String(newWifiState) + String(" Old State:") + String(settings1.getWiFiState()));
 
 		C17GH3MessageSettings1 msg;
 		msg.setBytes(settings1.getBytes());
@@ -350,3 +355,89 @@ void C17GH3State::setSensorMode(C17GH3MessageSettings2::SensorMode sm)
 	sendMessage(msg);
 }
 
+float C17GH3State::getTempCorrect() const
+{
+	return settings2.getTemperatureCorrection();
+}
+
+void C17GH3State::setTempCorrect(float temperature)
+{
+	C17GH3MessageSettings2 msg;
+	msg.setBytes(settings2.getBytes());
+	msg.setTemperatureCorrection(temperature);
+	msg.pack();
+	sendMessage(msg);
+}
+
+float C17GH3State::getInternalHysteresis() const
+{
+	return settings2.getInternalHysteresis();
+}
+
+void C17GH3State::setInternalHysteresis(float temperature)
+{
+	C17GH3MessageSettings2 msg;
+	msg.setBytes(settings2.getBytes());
+	msg.setInternalHysteresis(temperature);
+	msg.pack();
+	sendMessage(msg);
+}
+
+float C17GH3State::getExternalHysteresis() const
+{
+	return settings2.getExternalHysteresis();
+}
+
+void C17GH3State::setExternalHysteresis(float temperature)
+{
+	C17GH3MessageSettings2 msg;
+	msg.setBytes(settings2.getBytes());
+	msg.setExternalHysteresis(temperature);
+	msg.pack();
+	sendMessage(msg);
+}
+
+float C17GH3State::getTemperatureLimit() const
+{
+	return settings2.getExternalSensorLimit();
+}
+
+void C17GH3State::setTemperatureLimit(float temperature)
+{
+	C17GH3MessageSettings2 msg;
+	msg.setBytes(settings2.getBytes());
+	msg.setExternalSensorLimit(temperature);
+	msg.pack();
+	sendMessage(msg);
+}
+
+String C17GH3State::getSchedule(int day) const
+{
+	if ((day < 1) || (day > 7))
+	  return String("Error");
+	C17GH3MessageSchedule s = schedule[day - 1];
+	String ret = s.toJson();
+    return ret;
+}
+
+void C17GH3State::setSchedule(int day, String json)
+{
+    if ((day < 1) || (day > 7))
+	  return; 
+	C17GH3MessageSchedule s = schedule[day - 1];
+	DeserializationError error = deserializeJson(jsonDoc, json);	
+	if (error)
+	  return;
+	int i = 0;
+	for (int i = 0 ; i < 6; ++i)
+	{
+		String time = jsonDoc[String("time" + String(i + 1)).c_str()];
+		float temp = jsonDoc[String("temp" + String(i + 1)).c_str()];
+		int h,m;
+		scanf(time.c_str(),"%d:%d", &h, &m);
+		s.setTime(i, h, m);
+		s.setTemperature(i, temp);
+	}
+	s.pack();
+	sendMessage(s);
+}
