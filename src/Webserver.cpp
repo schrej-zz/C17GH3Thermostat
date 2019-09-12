@@ -1,7 +1,4 @@
 #include "Webserver.h"
-//#include <Arduino.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266HTTPUpdateServer.h>
 
 #include "C17GH3.h"
 #include "Log.h"
@@ -14,6 +11,7 @@ void Webserver::init(C17GH3State* state_)
 	server = new ESP8266WebServer(80);
 	httpUpdater = new ESP8266HTTPUpdateServer();
 
+	password = "";
 	server->on("/", HTTP_GET,std::bind(&Webserver::handleRoot, this));
 	server->on("/console", HTTP_GET,std::bind(&Webserver::handleConsole, this));
 	server->on("/console", HTTP_POST,std::bind(&Webserver::handleConsole, this));
@@ -23,8 +21,15 @@ void Webserver::init(C17GH3State* state_)
 	httpUpdater->setup(server);
 }
 
+
 void Webserver::handleRoot()
 {
+	String header;
+	if(password.length() > 0)
+	{
+  	  if(!server->authenticate("admin", password.c_str()))
+        return server->requestAuthentication();
+	}
 
 	String msg("<html><head><title>Wifi Thermostat</title></head><body>");
 	msg += "State:<br>";
@@ -45,6 +50,12 @@ void Webserver::handleNotFound()
 
 void Webserver::handleConsole()
 {
+	if(password.length() > 0)
+	{
+  	  if(!server->authenticate("admin", password.c_str()))
+        return server->requestAuthentication();
+	}
+	
 	if (server->hasArg("cmd"))
     {
 		String cmd = server->arg("cmd");
