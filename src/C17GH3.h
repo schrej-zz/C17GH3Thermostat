@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 
-
 class C17GH3MessageBase
 {
 public:
@@ -87,8 +86,6 @@ protected:
 	{
 		checksum = calcChecksum();
 	}
-
-
 };
 
 class C17GH3MessageQuery : public C17GH3MessageBase
@@ -686,7 +683,7 @@ public:
 	void processRx();
 	void processRx(int byte);
 	void processRx(const C17GH3MessageBase& msg);
-	void processTx(bool timeAvailable = false) const;
+	void processTx() const;
 	void sendMessage(const C17GH3MessageBase& msg) const;
 
 
@@ -727,7 +724,7 @@ public:
 	}
 private:
 	bool isValidState(const C17GH3MessageBase::C17GH3MessageType &msgType) const;
-	void sendSettings1(bool timeAvailable = false) const;
+	void sendSettings1() const;
 	void sendSettings2() const;
 
 	C17GH3MessageBuffer msgBuffer;

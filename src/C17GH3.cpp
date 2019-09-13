@@ -5,8 +5,21 @@
 #include "C17GH3.h"
 #include "Log.h"
 
+struct  strDateTime
+{
+  byte hour;
+  byte minute;
+  byte second;
+  int year;
+  byte month;
+  byte day;
+  byte wday;
+  unsigned long NTPtime;
+} ;
+
 extern Log logger;
 extern StaticJsonDocument<1024> jsonDoc;
+extern strDateTime DateTime;    
 
 void C17GH3State::processRx()
 {
@@ -95,9 +108,10 @@ bool C17GH3State::isValidState(const C17GH3MessageBase::C17GH3MessageType &msgTy
 	return false;
 }
 
-void C17GH3State::sendSettings1(bool timeAvailable) const
+void C17GH3State::sendSettings1() const
 {
 	static uint32_t nextSend = 0;
+	static uint32_t nextTimeSend = 0;
 	uint32_t millisNow = millis();
 	if (millisNow < nextSend)
 		return;
@@ -127,41 +141,21 @@ void C17GH3State::sendSettings1(bool timeAvailable) const
 			break;
 	}
 
-	struct tm* new_time = nullptr;
-	if (timeAvailable)
-	{
-		struct timezone tz = {0};
-		timeval tv = {0};
-		
-		gettimeofday(&tv, &tz);
-		time_t tnow = time(nullptr);
-
-		// localtime / gmtime every second change
-		static time_t nexttv = 0;
-		if (nexttv < tv.tv_sec)
-		{
-			nexttv = tv.tv_sec + 3600; // update every hour
-			new_time = localtime(&tnow);
-		}
-	}
-
-	if (newWifiState != settings1.getWiFiState() ||
-		new_time != nullptr )
+	if ((newWifiState != settings1.getWiFiState()) || (millisNow < nextTimeSend))
 	{
 		if (newWifiState != settings1.getWiFiState())
 			logger.addLine(String("Wifi state: ") + String(newWifiState) + String(" Old State:") + String(settings1.getWiFiState()));
+
+		nextTimeSend = millisNow + 600000;
 
 		C17GH3MessageSettings1 msg;
 		msg.setBytes(settings1.getBytes());
 		msg.setWiFiState(newWifiState);
 		msg.setTxFields(false);
-		if (new_time != nullptr)
-		{
 			// wday = 1-7 = mon - sun
-			msg.setDayOfWeek(new_time->tm_wday == 0 ? 7 : new_time->tm_wday);
-			msg.setHour(new_time->tm_hour);
-			msg.setMinute(new_time->tm_min);
-		}
+		msg.setDayOfWeek(DateTime.wday == 0 ? 7 : DateTime.wday);
+		msg.setHour(DateTime.hour);
+		msg.setMinute(DateTime.minute);
 		msg.pack();
 		sendMessage(msg);
 	}
@@ -172,7 +166,7 @@ void C17GH3State::sendSettings2() const
 
 }
 
-void C17GH3State::processTx(bool timeAvailable /* = false*/) const
+void C17GH3State::processTx() const
 {
 	static uint32_t timeNextSend = 0;
 	uint32_t timeNow = millis();
@@ -197,11 +191,9 @@ void C17GH3State::processTx(bool timeAvailable /* = false*/) const
 		else
 			msgType = (C17GH3MessageBase::C17GH3MessageType)(msgType + 1);
 	}
-
 	
-	sendSettings1(timeAvailable);
+	sendSettings1();
 	sendSettings2();
-
 }
 
 void C17GH3State::sendMessage(const C17GH3MessageBase& msg) const
@@ -428,7 +420,6 @@ void C17GH3State::setSchedule(int day, String json)
 	DeserializationError error = deserializeJson(jsonDoc, json);	
 	if (error)
 	  return;
-	int i = 0;
 	for (int i = 0 ; i < 6; ++i)
 	{
 		String time = jsonDoc[String("time" + String(i + 1)).c_str()];
