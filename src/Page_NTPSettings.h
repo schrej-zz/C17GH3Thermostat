@@ -69,6 +69,9 @@ function load(e,t,n){if("js"==t){var a=document.createElement("script");a.src=e,
 </script>
 )=====";
 
+extern bool firstStart;								// On firststart = true, NTP will try to get a valid time
+extern int AdminTimeOutCounter;	
+
 void send_NTP_configuration_html()
 {
   if(config.OTApwd.length() > 0)

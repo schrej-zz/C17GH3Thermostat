@@ -3,23 +3,11 @@
 #include <ArduinoJson.h>
 
 #include "C17GH3.h"
+#include "NTP.h"
 #include "Log.h"
-
-struct  strDateTime
-{
-  byte hour;
-  byte minute;
-  byte second;
-  int year;
-  byte month;
-  byte day;
-  byte wday;
-  unsigned long NTPtime;
-} ;
 
 extern Log logger;
 extern StaticJsonDocument<1024> jsonDoc;
-extern strDateTime DateTime;    
 
 void C17GH3State::processRx()
 {
@@ -145,7 +133,8 @@ void C17GH3State::sendSettings1() const
 	{
 		if (newWifiState != settings1.getWiFiState())
 			logger.addLine(String("Wifi state: ") + String(newWifiState) + String(" Old State:") + String(settings1.getWiFiState()));
-
+		
+		getNTPtime();
 		nextTimeSend = millisNow + 600000;
 
 		C17GH3MessageSettings1 msg;

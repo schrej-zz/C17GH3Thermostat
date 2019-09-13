@@ -192,11 +192,11 @@ void ESPBASE::handleStatus()
 	String msg( R"=====(
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <a href="/"  class="btn btn--s"><</a>&nbsp;&nbsp;<strong>Status</strong>
+  <a href="/"  class="btn btn--s"><</a>&nbsp;&nbsp;<strong>State</strong>
   <hr>
   )=====");
 
-	msg += "State:<br>";
+  msg += "<p>Day: " + String(DateTime.wday) + " Hour: " + String(DateTime.hour) + " Minute: " + String(DateTime.minute) + "</p>";
 	msg += "<pre>";
 	msg += state->toString();
 	msg += "</pre>";
@@ -278,7 +278,6 @@ void ESPBASE::handleConsole()
 	msg += "function sb(){ var c = document.getElementById('console');c.scrollTop = c.scrollHeight;}";
 	msg += "</script></head>";
 	msg += "<body onload='sb();'>";
-	msg += "Console:<br>";
 	msg += "<form method='POST'>";
 	msg += "<textarea id='console' style='width:100%;height:calc(100% - 50px);'>";
 	msg += logger.getLines();

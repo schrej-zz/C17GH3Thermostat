@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "ESPBase.h"
 
+#define MQTT_MAX_PACKET_SIZE 1024  //Setting for JSON-MQTT
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
@@ -115,6 +116,7 @@ void mqttReconnect()
 				mqttClient.publish(lastWill.c_str(), "online");
 				String topic = prefix + "/+/set";
 				mqttClient.subscribe(topic.c_str());
+				getNTPtime();
 			} 
 			else 
 			{
