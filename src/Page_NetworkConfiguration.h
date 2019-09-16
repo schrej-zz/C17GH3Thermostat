@@ -246,5 +246,4 @@ void send_connection_state_values_html()
 	values += "connectionstate|" +  state + "|div\n";
 	values += "networks|" +  Networks + "|div\n";
 	server.send ( 200, "text/plain", values);
-	AdminTimeOutCounter=0;
 }

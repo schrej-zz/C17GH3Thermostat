@@ -36,7 +36,6 @@ private:
 
 #include "Parameters.h"
 #include "WifiTools.h"
-#include "NTP.h"
 
 #include "C17GH3.h"
 // Include the HTML, STYLE and Script "Pages"
@@ -100,7 +99,6 @@ void ESPBASE::initialize(C17GH3State* s)
   // ***********  OTA SETUP
   OTASetup();
 
-  tkSecond.attach(1, ISRsecondTick);
 }
 
 void ESPBASE::httpSetup()
@@ -196,7 +194,7 @@ void ESPBASE::handleStatus()
   <hr>
   )=====");
 
-  msg += "<p>Day: " + String(DateTime.wday) + " Hour: " + String(DateTime.hour) + " Minute: " + String(DateTime.minute) + "</p>";
+  msg += "<p>Day: " + String(weekday() == 1 ? 7 : weekday() - 1) + " Hour: " + String(hour()) + " Minute: " + String(minute()) + "</p>";
 	msg += "<pre>";
 	msg += state->toString();
 	msg += "</pre>";

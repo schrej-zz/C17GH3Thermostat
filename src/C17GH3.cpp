@@ -1,13 +1,13 @@
 #include <ESP8266WiFi.h> 
 #include <sys/time.h>
+#include <NTPClientLib.h>
 #include <ArduinoJson.h>
+#include <TimeLib.h>
 
 #include "C17GH3.h"
-#include "NTP.h"
 #include "Log.h"
 
 extern Log logger;
-extern StaticJsonDocument<1024> jsonDoc;
 
 void C17GH3State::processRx()
 {
@@ -96,10 +96,14 @@ bool C17GH3State::isValidState(const C17GH3MessageBase::C17GH3MessageType &msgTy
 	return false;
 }
 
-void C17GH3State::sendSettings1() const
+void C17GH3State::setTime()
+{
+	doTimeSend = true;
+}
+
+void C17GH3State::sendSettings1() 
 {
 	static uint32_t nextSend = 0;
-	static uint32_t nextTimeSend = 0;
 	uint32_t millisNow = millis();
 	if (millisNow < nextSend)
 		return;
@@ -129,33 +133,35 @@ void C17GH3State::sendSettings1() const
 			break;
 	}
 
-	if ((newWifiState != settings1.getWiFiState()) || (millisNow < nextTimeSend))
+	if ((newWifiState != settings1.getWiFiState()) || (doTimeSend == true))
 	{
 		if (newWifiState != settings1.getWiFiState())
 			logger.addLine(String("Wifi state: ") + String(newWifiState) + String(" Old State:") + String(settings1.getWiFiState()));
-		
-		getNTPtime();
-		nextTimeSend = millisNow + 600000;
-
+			
+		doTimeSend = 0;
 		C17GH3MessageSettings1 msg;
 		msg.setBytes(settings1.getBytes());
 		msg.setWiFiState(newWifiState);
 		msg.setTxFields(false);
 		// wday = 1-7 = mon - sun
-		msg.setDayOfWeek(DateTime.wday == 0 ? 7 : DateTime.wday - 1);
-		msg.setHour(DateTime.hour);
-		msg.setMinute(DateTime.minute);
+		msg.setDayOfWeek(weekday() == 1 ? 7 : weekday() - 1);
+		msg.setHour(hour());
+		msg.setMinute(minute());
 		msg.pack();
 		sendMessage(msg);
+		logger.addLine(String("Setting Time: Day ") + String(msg.getDayOfWeek()) +  " Time " + String(msg.getHour()) + ":" + String(msg.getMinute()));
 	}
 }
 
 void C17GH3State::sendSettings2() const
 {
-
+	C17GH3MessageSettings2 msg;
+	msg.setBytes(settings2.getBytes());
+	msg.pack();
+	sendMessage(msg);
 }
 
-void C17GH3State::processTx() const
+void C17GH3State::processTx()
 {
 	static uint32_t timeNextSend = 0;
 	uint32_t timeNow = millis();
@@ -182,7 +188,6 @@ void C17GH3State::processTx() const
 	}
 	
 	sendSettings1();
-	sendSettings2();
 }
 
 void C17GH3State::sendMessage(const C17GH3MessageBase& msg) const
@@ -403,6 +408,8 @@ String C17GH3State::getSchedule(int day) const
 
 void C17GH3State::setSchedule(int day, String json)
 {
+	StaticJsonDocument<1024> jsonDoc;
+	
     if ((day < 1) || (day > 7))
 	  return; 
 	C17GH3MessageSchedule s = schedule[day - 1];

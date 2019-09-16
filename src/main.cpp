@@ -4,20 +4,20 @@
 #define MQTT_MAX_PACKET_SIZE 1024  //Setting for JSON-MQTT
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <NTPClientLib.h>
 
 #include "C17GH3.h"
 
 ESPBASE Esp;
-
 C17GH3State state;
 Log logger;
-StaticJsonDocument<1024> jsonDoc;
 
 static void mqttCallback(char* top, byte* pay, unsigned int length);
 static void mqttPublish();
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
+NTPSyncEvent_t ntpEvent; 				// Last triggered event
 
 void setup()
 {
@@ -26,6 +26,7 @@ void setup()
  	Serial.begin(9600);
 
 	String name = config.DeviceName;
+	//timeClient = new NTPClient(ntpUDP, config.ntpServerName.c_str(), config.timeZone * 360, 60000);
 	state.setWifiConfigCallback([name]() {
 		logger.addLine("Configuration portal opened");
     	WiFi.mode(WIFI_AP);
@@ -36,12 +37,20 @@ void setup()
 	MDNS.begin(config.DeviceName);
 	MDNS.addService("http", "tcp", 80);
 
-	getNTPtime();
+	NTP.onNTPSyncEvent ([](NTPSyncEvent_t event) {
+ 		if (event == timeSyncd) {
+			 state.setTime();
+        }
+    });
+
+    NTP.setInterval (63);
+    NTP.setNTPTimeout (1500);
+    NTP.begin (config.ntpServerName.c_str(), config.timeZone / 10, config.isDayLightSaving,  0);
 
 	//Starting MQTT Client
 	mqttClient.setServer(config.mqtt_server.c_str(), config.mqtt_port.toInt());
 	mqttClient.setCallback(mqttCallback);
-;}
+}
 
 void mqttCallback(char* top, byte* pay, unsigned int length) 
 {
@@ -116,7 +125,6 @@ void mqttReconnect()
 				mqttClient.publish(lastWill.c_str(), "online");
 				String topic = prefix + "/+/set";
 				mqttClient.subscribe(topic.c_str());
-				getNTPtime();
 			} 
 			else 
 			{
@@ -166,17 +174,19 @@ void loop()
 {
 	ArduinoOTA.handle();
 	server.handleClient();
-	customWatchdog = millis();
+
 	if (!mqttClient.connected()) {
 		mqttReconnect();
 	}
 	
+	NTP.getTimeDateString();
 	state.processRx();
 	
 	if(state.isChanged)
 	{
 	   mqttPublish();
 	}
+
 	state.processTx();
 	MDNS.update();
 	mqttClient.loop();

@@ -68,7 +68,6 @@ void send_general_html()
             if (server.argName(i) == "OTApwd") config.OTApwd = urldecode(server.arg(i));
 		}
 		WriteConfig();
-		firstStart = true;
 	}
 	server.send_P ( 200, "text/html", PAGE_AdminGeneralSettings ); 
 }
@@ -85,5 +84,4 @@ void send_general_configuration_values_html()
     values += "OTApwd|" +  (String)  config.OTApwd +  "|input\n";
  
 	server.send ( 200, "text/plain", values);
-    AdminTimeOutCounter=0;
 }

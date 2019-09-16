@@ -683,9 +683,9 @@ public:
 	void processRx();
 	void processRx(int byte);
 	void processRx(const C17GH3MessageBase& msg);
-	void processTx() const;
+	void processTx();
 	void sendMessage(const C17GH3MessageBase& msg) const;
-
+	void setTime();
 
 	typedef std::function<void()> WifiConfigCallback;
 	void setWifiConfigCallback(WifiConfigCallback cb)
@@ -724,7 +724,7 @@ public:
 	}
 private:
 	bool isValidState(const C17GH3MessageBase::C17GH3MessageType &msgType) const;
-	void sendSettings1() const;
+	void sendSettings1();
 	void sendSettings2() const;
 
 	C17GH3MessageBuffer msgBuffer;
@@ -736,7 +736,7 @@ private:
 	WifiConfigCallback wifiConfigCallback;
 	mutable bool firstQueriesDone = false;
 	bool isHeating = false;
-
+	bool doTimeSend = false;
 };
 
 #endif

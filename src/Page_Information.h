@@ -57,6 +57,5 @@ void send_information_values_html ()
   values += "x_netmask|" +  (String) WiFi.subnetMask()[0] + "." +  (String) WiFi.subnetMask()[1] + "." +  (String) WiFi.subnetMask()[2] + "." + (String) WiFi.subnetMask()[3] +  "|div\n";
   values += "x_mac|" + GetMacAddress() +  "|div\n";
   server.send ( 200, "text/plain", values);
-  AdminTimeOutCounter=0;
 }
 #endif

@@ -69,9 +69,6 @@ function load(e,t,n){if("js"==t){var a=document.createElement("script");a.src=e,
 </script>
 )=====";
 
-extern bool firstStart;								// On firststart = true, NTP will try to get a valid time
-extern int AdminTimeOutCounter;	
-
 void send_NTP_configuration_html()
 {
   if(config.OTApwd.length() > 0)
@@ -91,8 +88,6 @@ void send_NTP_configuration_html()
       if (server.argName(i) == "dst") config.isDayLightSaving = true; 
     }
     WriteConfig();
-   
-    firstStart = true;
   }
   server.send_P ( 200, "text/html", PAGE_NTPConfiguration );  
 }
@@ -111,5 +106,4 @@ void send_NTP_configuration_values_html()
   values += "tz|" +  (String) config.timeZone + "|input\n";
   values += "dst|" +  (String) (config.isDayLightSaving ? "checked" : "") + "|chk\n";
   server.send ( 200, "text/plain", values);
-  AdminTimeOutCounter=0;
 }
