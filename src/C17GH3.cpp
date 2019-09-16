@@ -141,8 +141,8 @@ void C17GH3State::sendSettings1() const
 		msg.setBytes(settings1.getBytes());
 		msg.setWiFiState(newWifiState);
 		msg.setTxFields(false);
-			// wday = 1-7 = mon - sun
-		msg.setDayOfWeek(DateTime.wday == 0 ? 7 : DateTime.wday);
+		// wday = 1-7 = mon - sun
+		msg.setDayOfWeek(DateTime.wday == 0 ? 7 : DateTime.wday - 1);
 		msg.setHour(DateTime.hour);
 		msg.setMinute(DateTime.minute);
 		msg.pack();
