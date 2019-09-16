@@ -1,7 +1,7 @@
+#define MQTT_MAX_PACKET_SIZE 1024  //Setting for JSON-MQTT
+
 #include <Arduino.h>
 #include "ESPBase.h"
-
-#define MQTT_MAX_PACKET_SIZE 1024  //Setting for JSON-MQTT
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <NTPClientLib.h>
@@ -182,7 +182,7 @@ void loop()
 	NTP.getTimeDateString();
 	state.processRx();
 	
-	if(state.isChanged)
+	if(state.isChanged && state.isFirstQueryDone())
 	{
 	   mqttPublish();
 	}

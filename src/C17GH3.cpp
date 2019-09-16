@@ -142,7 +142,7 @@ void C17GH3State::sendSettings1()
 		C17GH3MessageSettings1 msg;
 		msg.setBytes(settings1.getBytes());
 		msg.setWiFiState(newWifiState);
-		msg.setTxFields(false);
+		msg.setTxFields(true);
 		// wday = 1-7 = mon - sun
 		msg.setDayOfWeek(weekday() == 1 ? 7 : weekday() - 1);
 		msg.setHour(hour());

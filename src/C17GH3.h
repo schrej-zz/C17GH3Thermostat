@@ -722,6 +722,10 @@ public:
 		}
 		return str;
 	}
+	bool isFirstQueryDone()
+	{
+		return firstQueriesDone;
+	}
 private:
 	bool isValidState(const C17GH3MessageBase::C17GH3MessageType &msgType) const;
 	void sendSettings1();
