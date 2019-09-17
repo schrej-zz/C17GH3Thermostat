@@ -192,7 +192,7 @@ public:
 	}
 	void setSetPointTemp(float temperature)
 	{
-		temperature = std::max(std::min(temperature,30.f),0.f);
+		temperature = std::max(std::min(temperature,45.f),0.f);
 		set_point_temp = (uint8_t)(temperature * 2 + .5f); 
 	}
 

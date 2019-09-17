@@ -44,7 +44,6 @@ void C17GH3State::processRx(const C17GH3MessageBase& msg)
 		{
 			C17GH3MessageSettings1 s1msg;
 			s1msg.setBytes(msg.getBytes());
-			isChanged = true;
 			if (C17GH3MessageSettings1::WIFI_STATE_CONFIG == s1msg.getWiFiState())
 			{
 				// wifi config request
@@ -57,14 +56,15 @@ void C17GH3State::processRx(const C17GH3MessageBase& msg)
 			else
 			{	
 				settings1.setBytes(msg.getBytes());
-				logger.addLine(settings1.toString());
+				isChanged = true;
+				logger.addLine("Got 0xC1");
 			}
 		}
 		break;
 		case 0xC2:
 			settings2.setBytes(msg.getBytes());
+			logger.addLine("Got 0xC2");
 			isChanged = true;
-			logger.addLine(settings2.toString());
 		break;
 		case 0xC3:
 		case 0xC4:
@@ -74,7 +74,7 @@ void C17GH3State::processRx(const C17GH3MessageBase& msg)
 		case 0xC8:
 		case 0xC9:
 			schedule[msg.type - 0xC3].setBytes(msg.getBytes());
-			logger.addLine(schedule[msg.type - 0xC3].toString());
+			logger.addLine("Got 0x" + String(msg.type, HEX));
 			isChanged = true;
 		break;
 		default:

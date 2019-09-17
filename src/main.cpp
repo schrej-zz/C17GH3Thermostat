@@ -26,7 +26,7 @@ void setup()
  	Serial.begin(9600);
 
 	String name = config.DeviceName;
-	//timeClient = new NTPClient(ntpUDP, config.ntpServerName.c_str(), config.timeZone * 360, 60000);
+
 	state.setWifiConfigCallback([name]() {
 		logger.addLine("Configuration portal opened");
     	WiFi.mode(WIFI_AP);
