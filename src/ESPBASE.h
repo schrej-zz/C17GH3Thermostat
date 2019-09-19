@@ -71,6 +71,8 @@ void ESPBASE::initialize(C17GH3State* s)
       // using SSID and password saved in parameters (config object)
       WiFi.mode(WIFI_OFF);
       WiFi.mode(WIFI_STA);
+      WiFi.setAutoReconnect(true);
+      WiFi.hostname(config.DeviceName);
       WiFi.begin(config.ssid.c_str(), config.password.c_str());
       while((WiFi.status()!= WL_CONNECTED) and --timeoutClick > 0) {
         delay(500);
