@@ -18,6 +18,7 @@ static void mqttPublish();
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 NTPSyncEvent_t ntpEvent; 				// Last triggered event
+int reconnect = 0;
 
 void setup()
 {
@@ -181,7 +182,21 @@ void loop()
 	
 	NTP.getTimeDateString();
 	state.processRx();
+	if(WiFi.status() != WL_CONNECTED)
+	{
+		WiFi.reconnect();
+		reconnect++;
+	}
+	else
+	{
+		reconnect = 0;
+	}
 	
+	if(reconnect > 100)
+	{
+		ESP.restart();
+	}
+
 	if(state.isChanged && state.isFirstQueryDone())
 	{
 	   mqttPublish();
