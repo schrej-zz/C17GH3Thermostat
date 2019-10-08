@@ -199,7 +199,6 @@ void loop()
 
 	if(state.isChanged && state.isFirstQueryDone())
 	{
-	   int val = 0;
 	   mqttPublish();
 	}
 
