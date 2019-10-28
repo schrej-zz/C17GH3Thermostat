@@ -123,7 +123,7 @@ void mqttReconnect()
 			if (mqttClient.connect(config.DeviceName.c_str(), config.mqtt_username.c_str(), config.mqtt_password.c_str(), lastWill.c_str(), 1, true, "offline")) 
 			{
 				logger.addLine("MQTT connected");
-				mqttClient.publish(lastWill.c_str(), "online");
+				mqttClient.publish(lastWill.c_str(), "online", true);
 				String topic = prefix + "/+/set";
 				mqttClient.subscribe(topic.c_str());
 			} 
@@ -142,30 +142,30 @@ void mqttPublish()
 	{
 		String prefix = config.mqtt_prefix + "/" + config.DeviceName;
 
-		mqttClient.publish(String(prefix + "/online").c_str(), "online");
+		mqttClient.publish(String(prefix + "/online").c_str(), "online", true);
 		mqttClient.publish(String(prefix + "/wifi").c_str(), String(state.getWiFiState()).c_str());
-		mqttClient.publish(String(prefix + "/temperature_setpoint").c_str(), String(state.getSetPointTemp()).c_str());
-		mqttClient.publish(String(prefix + "/lock").c_str(), String(state.getLock()).c_str());
-		mqttClient.publish(String(prefix + "/manual").c_str(), String(state.getMode()).c_str());
-		mqttClient.publish(String(prefix + "/on").c_str(), String(state.getPower()).c_str());
+		mqttClient.publish(String(prefix + "/temperature_setpoint").c_str(), String(state.getSetPointTemp()).c_str(), true);
+		mqttClient.publish(String(prefix + "/lock").c_str(), String(state.getLock()).c_str(), true);
+		mqttClient.publish(String(prefix + "/manual").c_str(), String(state.getMode()).c_str(), true);
+		mqttClient.publish(String(prefix + "/on").c_str(), String(state.getPower()).c_str(), true);
 		mqttClient.publish(String(prefix + "/temperatur_internal").c_str(), String(state.getInternalTemperature()).c_str());
 		mqttClient.publish(String(prefix + "/temperatur_external").c_str(), String(state.getExternalTemperature()).c_str());
-		mqttClient.publish(String(prefix + "/backlight_always_on").c_str(), String(state.getBacklightMode()).c_str());
-		mqttClient.publish(String(prefix + "/on_after_powerloss").c_str(), String(state.getPowerMode()).c_str());
-		mqttClient.publish(String(prefix + "/antifreeze").c_str(), String(state.getAntifreezeMode()).c_str());
-		mqttClient.publish(String(prefix + "/sensor_mode").c_str(), String(state.getSensorMode()).c_str());
-		mqttClient.publish(String(prefix + "/temperature_correction").c_str(), String(state.getTempCorrect()).c_str());
-		mqttClient.publish(String(prefix + "/hysteresis_internal").c_str(), String(state.getInternalHysteresis()).c_str());
-		mqttClient.publish(String(prefix + "/hysteresis_external").c_str(), String(state.getExternalHysteresis()).c_str());
-		mqttClient.publish(String(prefix + "/temperature_limit_external").c_str(), String(state.getTemperatureLimit()).c_str());
+		mqttClient.publish(String(prefix + "/backlight_always_on").c_str(), String(state.getBacklightMode()).c_str(), true);
+		mqttClient.publish(String(prefix + "/on_after_powerloss").c_str(), String(state.getPowerMode()).c_str(), true);
+		mqttClient.publish(String(prefix + "/antifreeze").c_str(), String(state.getAntifreezeMode()).c_str(), true);
+		mqttClient.publish(String(prefix + "/sensor_mode").c_str(), String(state.getSensorMode()).c_str(), true);
+		mqttClient.publish(String(prefix + "/temperature_correction").c_str(), String(state.getTempCorrect()).c_str(), true); 
+		mqttClient.publish(String(prefix + "/hysteresis_internal").c_str(), String(state.getInternalHysteresis()).c_str(), true);
+		mqttClient.publish(String(prefix + "/hysteresis_external").c_str(), String(state.getExternalHysteresis()).c_str(), true);
+		mqttClient.publish(String(prefix + "/temperature_limit_external").c_str(), String(state.getTemperatureLimit()).c_str(), true);
 		
-		mqttClient.publish(String(prefix + "/schedule1").c_str(), state.getSchedule(1).c_str());
-		mqttClient.publish(String(prefix + "/schedule2").c_str(), state.getSchedule(2).c_str());
-		mqttClient.publish(String(prefix + "/schedule3").c_str(), state.getSchedule(3).c_str());
-		mqttClient.publish(String(prefix + "/schedule4").c_str(), state.getSchedule(4).c_str());
-		mqttClient.publish(String(prefix + "/schedule5").c_str(), state.getSchedule(5).c_str());
-		mqttClient.publish(String(prefix + "/schedule6").c_str(), state.getSchedule(6).c_str());
-		mqttClient.publish(String(prefix + "/schedule7").c_str(), state.getSchedule(7).c_str());
+		mqttClient.publish(String(prefix + "/schedule1").c_str(), state.getSchedule(1).c_str(), true);
+		mqttClient.publish(String(prefix + "/schedule2").c_str(), state.getSchedule(2).c_str(), true);
+		mqttClient.publish(String(prefix + "/schedule3").c_str(), state.getSchedule(3).c_str(), true);
+		mqttClient.publish(String(prefix + "/schedule4").c_str(), state.getSchedule(4).c_str(), true);
+		mqttClient.publish(String(prefix + "/schedule5").c_str(), state.getSchedule(5).c_str(), true);
+		mqttClient.publish(String(prefix + "/schedule6").c_str(), state.getSchedule(6).c_str(), true);
+		mqttClient.publish(String(prefix + "/schedule7").c_str(), state.getSchedule(7).c_str(), true);
 
 		state.isChanged = false;
 	}
